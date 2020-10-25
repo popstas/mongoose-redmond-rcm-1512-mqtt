@@ -1,0 +1,50 @@
+author: popstas
+description: Webhook button
+version: 1.0.0
+
+libs_version: ${mos.version}
+modules_version: ${mos.version}
+mongoose_os_version: ${mos.version}
+platform: esp8266
+
+tags:
+  - c
+
+sources:
+  - src
+
+filesystem:
+  - fs
+
+config_schema:
+  - ["app", "o", "", {"title": "Button settings"}]
+  - ["app.mqtt_topic", "s", "redmond-rcm-1512", {"title": "MQTT subscribe topic"}]
+  - ["app.power_gpio", "i", 5, {title: "GPIO to use for power button"}] # D1
+  - ["app.coffee_gpio", "i", 4, {title: "GPIO to use for 2x espresso button"}] # D2
+  - ["app.error_led_gpio", "i", 12, {title: "GPIO to use for error led"}] # D6
+  - ["app.coffee_led_gpio", "i", 13, {title: "GPIO to use for 2x espresso led"}] # D7
+  - ["i2c.enable", true]
+  - ["i2c.debug", true]
+  # https://steve.fi/Hardware/d1-pins/
+  - ["mqtt.enable", true]
+  - ["mqtt.reconnect_timeout_min", 2]
+  - ["mqtt.reconnect_timeout_max", 300]
+  - ["mqtt.client_id", 'redmond-rcm-1512']
+
+libs:
+  - origin: https://github.com/mongoose-os-libs/boards
+  - origin: https://github.com/mongoose-os-libs/i2c
+  # - origin: https://github.com/mongoose-os-libs/rpc-service-i2c # I2C.Scan()
+  - origin: https://github.com/mongoose-os-libs/mjs
+  - origin: https://github.com/mongoose-os-libs/mqtt
+  # - origin: https://github.com/mongoose-os-libs/ota-http-client
+  - origin: https://github.com/mongoose-os-libs/ota-http-server # https://mongoose-os.com/docs/mongoose-os/userguide/ota.md
+  - origin: https://github.com/mongoose-os-libs/rpc-service-config # for mos config
+  - origin: https://github.com/mongoose-os-libs/rpc-service-fs # for edit files
+  - origin: https://github.com/mongoose-os-libs/rpc-service-ota
+  - origin: https://github.com/mongoose-os-libs/rpc-uart # for mos config
+  - origin: https://github.com/mongoose-os-libs/rpc-ws
+  - origin: https://github.com/mongoose-os-libs/wifi
+
+# Used by the mos tool to catch mos binaries incompatible with this file format
+manifest_version: 2017-09-29
