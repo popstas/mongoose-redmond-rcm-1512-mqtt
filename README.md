@@ -33,3 +33,11 @@
 - `app.coffee_gpio` - GPIO to use for power button, default: `D2`
 - `app.error_led_gpio` - GPIO to use for error led: `D6`
 - `app.coffee_led_gpio` - GPIO to use for 2x espresso led: `D7`
+
+## Flashing
+``` sh
+mos build
+mos flash
+mos wifi ssid password
+mos config-set mqtt.server=host mqtt.user=username mqtt.pass=password
+```
