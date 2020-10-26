@@ -18,7 +18,8 @@ filesystem:
 
 config_schema:
   - ["app", "o", "", {"title": "Button settings"}]
-  - ["app.mqtt_topic", "s", "redmond-rcm-1512", {"title": "MQTT subscribe topic"}]
+  - ["app.mqtt_topic", "s", "redmond-rcm-1512", {"title": "MQTT base topic"}]
+  - ["app.power_off_timeout_sec", "i", 300, {"title": "Power off idle timeout"}]
   - ["app.power_gpio", "i", 5, {title: "GPIO to use for power button"}] # D1
   - ["app.coffee_gpio", "i", 4, {title: "GPIO to use for 2x espresso button"}] # D2
   - ["app.error_led_gpio", "i", 12, {title: "GPIO to use for error led"}] # D6

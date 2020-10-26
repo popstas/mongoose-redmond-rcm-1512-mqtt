@@ -1,4 +1,4 @@
-// mongoose-redmond-rcm-1215-mqtt
+// mongoose-redmond-rcm-1512-mqtt
 load('api_config.js');
 load('api_esp8266.js');
 load('api_gpio.js');
@@ -7,9 +7,10 @@ load('api_mqtt.js');
 // load('api_sys.js');
 load('api_timer.js');
 
-print('### redmond-rcm-1215-mqtt');
+print('### redmond-rcm-1512-mqtt');
 
 let baseTopic = Cfg.get('app.mqtt_topic');
+let powerOffTimeoutSec = Cfg.get('app.power_off_timeout_sec');
 
 let power_pin = Cfg.get('app.power_gpio');
 let coffee_pin = Cfg.get('app.coffee_gpio');
@@ -17,8 +18,8 @@ let error_led_pin = Cfg.get('app.error_led_gpio');
 let coffee_led_pin = Cfg.get('app.coffee_led_gpio');
 let board_led_pin = Cfg.get('board.led1.pin');
 
-let notSameThreshold = 4; // сколько раз подряд должно измениться значение, чтобы определилось мигание
-let sameThreshold = 4; // сколько раз подряд должно измениться значение, чтобы определилось не мигание
+let notSameThreshold = 5; // сколько раз подряд должно измениться значение, чтобы определилось мигание
+let sameThreshold = 5; // сколько раз подряд должно измениться значение, чтобы определилось не мигание
 let errorTimeout = 4;
 let errorMin = 2;
 
@@ -29,6 +30,7 @@ ledTopics[coffee_led_pin] = 'coffee';
 let waitForSecondCoffee = false;
 let powerTimeout = 0;
 let secondCoffeeTimeout = 0;
+let powerOffTimeout = 0;
 
 let ledState = {};
 let ledPins = [error_led_pin, coffee_led_pin];
@@ -60,6 +62,7 @@ print('led pin:', board_led_pin);
 function onLed(pin) {
   let val = GPIO.read(pin);
   let lastState = ledState[pin].state;
+  // print('error:', val);
 
   // error led
   if (pin === error_led_pin) {
@@ -71,6 +74,7 @@ function onLed(pin) {
       ledState[pin].errorAgo++;
     }
 
+    // print('errorAgo:', ledState[pin].errorAgo);
     if (ledState[pin].state === 'ERROR' && ledState[pin].errorAgo > errorTimeout) {
       ledState[pin].state = '';
     }
@@ -106,6 +110,18 @@ function onLed(pin) {
   if (lastState !== ledState[pin].state) {
     let topic = baseTopic + '/leds/' + ledState[pin].topic;
     MQTT.pub(topic, ledState[pin].state);
+
+    // power off timeout, set when ON, clear wher other state
+    if (ledState[pin].state === 'ON') {
+      print('start power timeout');
+      powerOffTimeout = Timer.set(powerOffTimeoutSec * 1000, 0, function() {
+        print('power timeout! power off');
+        MQTT.pub(baseTopic + '/command/power', '0');
+      }, null);
+    } else {
+      print('cancel power timeout');
+      Timer.del(powerOffTimeout);
+    }
   }
 }
 
@@ -152,6 +168,22 @@ MQTT.setEventHandler(function(conn, ev, edata) {
 }, null);
 
 
+function waitForPowerHandler() {
+  if (powerTimeout === 0 || waitForSecondCoffee) {
+    print('break wait for power');
+    return;
+  }
+
+  if (ledState[coffee_led_pin].state === 'ON') {
+    Timer.del(powerTimeout);
+    // MQTT.pub(baseTopic + '/command/coffee-x2', '1');
+    MQTT.pub(baseTopic + '/command/coffee-x2', '1');
+  } else {
+    print('wait for ready 5 sec more ...')
+    Timer.set(5000, 0, waitForPowerHandler, null);
+  }
+}
+
 function waitForCoffeeHandler() {
   if (!waitForSecondCoffee) return;
 
@@ -164,7 +196,7 @@ function waitForCoffeeHandler() {
 }
 
 MQTT.sub(baseTopic + '/command/coffee-script', function(conn, topic, msg) {
-  print('sub: ' + topic + ': ' + msg);
+  print('mqtt in: ' + topic + ': ' + msg);
 
   // ready, only coffee on
   if (ledState[coffee_led_pin].state === 'ON') {
@@ -176,26 +208,27 @@ MQTT.sub(baseTopic + '/command/coffee-script', function(conn, topic, msg) {
     MQTT.pub(baseTopic + '/command/power', '1');
 
     Timer.del(powerTimeout);
-    powerTimeout = Timer.set(60000, 0, function(data) {
-      MQTT.pub(baseTopic + '/command/coffee-x2', '1');
-    }, null);
+    powerTimeout = Timer.set(5000, 0, waitForPowerHandler, null);
   }
 });
 
-
 MQTT.sub(baseTopic + '/command/force/power', function(conn, topic, msg) {
-  print('sub: ' + topic + ': ' + msg);
+  print('mqtt in: ' + topic + ': ' + msg);
   waitForSecondCoffee = false;
+  Timer.del(powerTimeout);
+  powerTimeout = 0;
+
   pressBtn(power_pin);
 });
 
 MQTT.sub(baseTopic + '/command/power', function(conn, topic, msg) {
-  print('sub: ' + topic + ': ' + msg);
-  waitForSecondCoffee = false;
+  print('mqtt in: ' + topic + ': ' + msg);
   let state = ledState[coffee_led_pin].state;
   let isOn = state === 'ON' || state === 'BLINK';
   let isAllow = (!isOn && msg === '1') || (isOn && msg === '0');
   waitForSecondCoffee = false;
+  /* Timer.del(powerTimeout);
+  powerTimeout = 0; */
 
   if (isAllow) {
     pressBtn(power_pin);
@@ -203,13 +236,13 @@ MQTT.sub(baseTopic + '/command/power', function(conn, topic, msg) {
 });
 
 MQTT.sub(baseTopic + '/command/force/coffee', function(conn, topic, msg) {
-  print('sub: ' + topic + ': ' + msg);
+  print('mqtt in: ' + topic + ': ' + msg);
   waitForSecondCoffee = false;
   pressBtn(coffee_pin);
 });
 
 MQTT.sub(baseTopic + '/command/coffee-x2', function(conn, topic, msg) {
-  print('sub: ' + topic + ': ' + msg);
+  print('mqtt in: ' + topic + ': ' + msg);
   MQTT.pub(baseTopic + '/command/coffee', '1');
   waitForSecondCoffee = true;
   
@@ -219,8 +252,10 @@ MQTT.sub(baseTopic + '/command/coffee-x2', function(conn, topic, msg) {
 
 // only when coffee led ON
 MQTT.sub(baseTopic + '/command/coffee', function(conn, topic, msg) {
-  print('sub: ' + topic + ': ' + msg);
+  print('mqtt in: ' + topic + ': ' + msg);
   if (ledState[coffee_led_pin].state === 'ON') {
+    MQTT.pub(baseTopic + '/button/coffee', '1');
+    Timer.del(powerOffTimeout);
     pressBtn(coffee_pin);
   }
 });
