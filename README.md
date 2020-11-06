@@ -22,17 +22,20 @@
 ## Wiring
 - Power button: D1 (relay)
 - Coffee button: D2 (relay)
-- Error led: D6
+- Error led: D6 (not work)
 - Coffee led: D7
+- Coffee-script button: D3 and Ground
 - Connect ESP Ground to Redmond Ground
 
 ## Config options
+- `app.debug` - Output debug to MQTT, default: `false`
 - `app.mqtt_topic` - MQTT base topic, default: `redmond-rcm-1512`
 - `app.power_off_timeout_sec` - Power off idle timeout, default: `300`
 - `app.power_gpio` - GPIO to use for power button, default: `D1`
 - `app.coffee_gpio` - GPIO to use for power button, default: `D2`
 - `app.error_led_gpio` - GPIO to use for error led: `D6`
 - `app.coffee_led_gpio` - GPIO to use for 2x espresso led: `D7`
+- `app.button_gpio` - GPIO to use for coffee-script button: `D3`
 
 ## Flashing
 ``` sh

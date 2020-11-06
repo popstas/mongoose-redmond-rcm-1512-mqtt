@@ -9,6 +9,8 @@ load('api_timer.js');
 
 print('### redmond-rcm-1512-mqtt');
 
+let isDebug = Cfg.get('app.debug');
+
 let baseTopic = Cfg.get('app.mqtt_topic');
 let powerOffTimeoutSec = Cfg.get('app.power_off_timeout_sec');
 
@@ -16,6 +18,7 @@ let power_pin = Cfg.get('app.power_gpio');
 let coffee_pin = Cfg.get('app.coffee_gpio');
 let error_led_pin = Cfg.get('app.error_led_gpio');
 let coffee_led_pin = Cfg.get('app.coffee_led_gpio');
+let coffee_script_pin = Cfg.get('app.button_gpio');
 let board_led_pin = Cfg.get('board.led1.pin');
 
 let notSameThreshold = 5; // сколько раз подряд должно измениться значение, чтобы определилось мигание
@@ -59,6 +62,19 @@ GPIO.set_mode(board_led_pin, GPIO.MODE_OUTPUT);
 GPIO.write(board_led_pin, 1);
 print('led pin:', board_led_pin);
 
+// hardware button for coffee-script
+GPIO.set_button_handler(coffee_script_pin, GPIO.PULL_UP, GPIO.INT_EDGE_NEG, 100,
+  function() {
+    MQTT.pub(baseTopic + '/command/coffee-script', '1');
+  }, null
+);
+
+function log(msg) {
+  print(msg);
+  if (!isDebug) return;
+  MQTT.pub(baseTopic + '/debug', msg);
+}
+
 function onLed(pin) {
   let val = GPIO.read(pin);
   let lastState = ledState[pin].state;
@@ -69,6 +85,7 @@ function onLed(pin) {
     if (val) {
       ledState[pin].errorAgo = 0;
       waitForSecondCoffee = false;
+      log('stop wait second coffee - error');
     }
     else {
       ledState[pin].errorAgo++;
@@ -170,7 +187,7 @@ MQTT.setEventHandler(function(conn, ev, edata) {
 
 function waitForPowerHandler() {
   if (powerTimeout === 0 || waitForSecondCoffee) {
-    print('break wait for power');
+    log('break wait for power');
     return;
   }
 
@@ -189,6 +206,7 @@ function waitForCoffeeHandler() {
 
   if (ledState[coffee_led_pin].state === 'ON') {
     waitForSecondCoffee = false;
+    log('stop wait second coffee - press second');
     MQTT.pub(baseTopic + '/command/coffee', '1');
   } else {
     Timer.set(5000, 0, waitForCoffeeHandler, null);
@@ -215,6 +233,7 @@ MQTT.sub(baseTopic + '/command/coffee-script', function(conn, topic, msg) {
 MQTT.sub(baseTopic + '/command/force/power', function(conn, topic, msg) {
   print('mqtt in: ' + topic + ': ' + msg);
   waitForSecondCoffee = false;
+  log('stop wait second coffee - force power');
   Timer.del(powerTimeout);
   powerTimeout = 0;
 
@@ -227,6 +246,7 @@ MQTT.sub(baseTopic + '/command/power', function(conn, topic, msg) {
   let isOn = state === 'ON' || state === 'BLINK';
   let isAllow = (!isOn && msg === '1') || (isOn && msg === '0');
   waitForSecondCoffee = false;
+  log('stop wait second coffee - command power');
   /* Timer.del(powerTimeout);
   powerTimeout = 0; */
 
@@ -238,6 +258,7 @@ MQTT.sub(baseTopic + '/command/power', function(conn, topic, msg) {
 MQTT.sub(baseTopic + '/command/force/coffee', function(conn, topic, msg) {
   print('mqtt in: ' + topic + ': ' + msg);
   waitForSecondCoffee = false;
+  log('stop wait second coffee - force coffee');
   pressBtn(coffee_pin);
 });
 
@@ -245,6 +266,7 @@ MQTT.sub(baseTopic + '/command/coffee-x2', function(conn, topic, msg) {
   print('mqtt in: ' + topic + ': ' + msg);
   MQTT.pub(baseTopic + '/command/coffee', '1');
   waitForSecondCoffee = true;
+  log('start wait second coffee');
   
   Timer.del(secondCoffeeTimeout);
   secondCoffeeTimeout = Timer.set(60000, 0, waitForCoffeeHandler, null);
