@@ -7,12 +7,6 @@ modules_version: ${mos.version}
 mongoose_os_version: ${mos.version}
 platform: esp8266
 
-tags:
-  - c
-
-sources:
-  - src
-
 filesystem:
   - fs
 

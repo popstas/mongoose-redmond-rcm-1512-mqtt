@@ -143,7 +143,7 @@ function onLed(pin) {
 }
 
 function startLedMonitor() {
-  // диоды мигают раз в 0.5 сек, засекал по bpm
+  // диоды мигают раз в 0.5 сек, з��секал по bpm
   Timer.set(500, Timer.REPEAT, function() {
     // print('monitor:');
     for (let i in ledPins){
@@ -196,19 +196,24 @@ function waitForPowerHandler() {
     // MQTT.pub(baseTopic + '/command/coffee-x2', '1');
     MQTT.pub(baseTopic + '/command/coffee-x2', '1');
   } else {
-    print('wait for ready 5 sec more ...')
+    log('wait for ready 5 sec more ...')
     Timer.set(5000, 0, waitForPowerHandler, null);
   }
 }
 
 function waitForCoffeeHandler() {
-  if (!waitForSecondCoffee) return;
+  log('waitForCoffeeHandler');
+  if (!waitForSecondCoffee) {
+    log('stop wait second coffee - waitForCoffeeHandler');
+    return;
+  }
 
   if (ledState[coffee_led_pin].state === 'ON') {
     waitForSecondCoffee = false;
     log('stop wait second coffee - press second');
     MQTT.pub(baseTopic + '/command/coffee', '1');
   } else {
+    log('still wait second coffee...');
     Timer.set(5000, 0, waitForCoffeeHandler, null);
   }
 }
@@ -245,8 +250,12 @@ MQTT.sub(baseTopic + '/command/power', function(conn, topic, msg) {
   let state = ledState[coffee_led_pin].state;
   let isOn = state === 'ON' || state === 'BLINK';
   let isAllow = (!isOn && msg === '1') || (isOn && msg === '0');
-  waitForSecondCoffee = false;
-  log('stop wait second coffee - command power');
+
+  if (waitForSecondCoffee) {
+    waitForSecondCoffee = false;
+    log('stop wait second coffee - command power');
+  }
+
   /* Timer.del(powerTimeout);
   powerTimeout = 0; */
 
@@ -265,11 +274,17 @@ MQTT.sub(baseTopic + '/command/force/coffee', function(conn, topic, msg) {
 MQTT.sub(baseTopic + '/command/coffee-x2', function(conn, topic, msg) {
   print('mqtt in: ' + topic + ': ' + msg);
   MQTT.pub(baseTopic + '/command/coffee', '1');
-  waitForSecondCoffee = true;
-  log('start wait second coffee');
-  
+
+  // если включить ожидание сразу, то /command/power может его отменить
+  let t2s = Timer.set(2000, 0, function() {
+    log('start wait second coffee');
+    waitForSecondCoffee = true;
+  }, null);
+  // log('2 sec timer: ' + JSON.stringify(t2s));
+
   Timer.del(secondCoffeeTimeout);
   secondCoffeeTimeout = Timer.set(60000, 0, waitForCoffeeHandler, null);
+  log('secondCoffeeTimeout: ' + JSON.stringify(secondCoffeeTimeout))
 });
 
 // only when coffee led ON
