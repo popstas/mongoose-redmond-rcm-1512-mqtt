@@ -19,6 +19,9 @@
 - leds/coffee [ON/OFF/BLINK]
 - leds/error [ERROR]
 
+## MQTT LWT (Last Will)
+- LWT [Online/Offline]
+
 ## Wiring
 - Power button: D1 (relay)
 - Coffee button: D2 (relay)
@@ -26,6 +29,10 @@
 - Coffee led: D7
 - Coffee-script button: D3 and Ground
 - Connect ESP Ground to Redmond Ground
+
+Soldering to coffee button panel:
+
+![](/assets/wiring.png)
 
 ## Config options
 - `app.debug` - Output debug to MQTT, default: `false`

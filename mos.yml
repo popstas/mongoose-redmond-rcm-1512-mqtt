@@ -21,6 +21,9 @@ config_schema:
   - ["app.coffee_led_gpio", "i", 13, {title: "GPIO to use for 2x espresso led"}] # D7
   - ["app.button_gpio", "i", 0, {title: "GPIO to use for coffee-script button"}] # D3
   - ["i2c.enable", true]
+  - ["mqtt.will_topic", "redmond-rcm-1512/LWT"]
+  - ["mqtt.will_message", "Offline"]
+  - ["mqtt.will_retain", true]
   - ["i2c.debug", true]
   # https://steve.fi/Hardware/d1-pins/
   - ["mqtt.enable", true]

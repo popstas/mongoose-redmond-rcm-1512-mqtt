@@ -4,7 +4,7 @@ load('api_esp8266.js');
 load('api_gpio.js');
 load('api_i2c.js');
 load('api_mqtt.js');
-// load('api_sys.js');
+load('api_sys.js');
 load('api_timer.js');
 
 print('### redmond-rcm-1512-mqtt');
@@ -113,6 +113,11 @@ function onLed(pin) {
       ledState[pin].state = 'BLINK';
     } else if (ledState[pin].sameCount > sameThreshold) {
       ledState[pin].state = val ? 'ON' : 'OFF';
+
+      // reboot after coffee off
+      if (ledState[pin].state === 'OFF') {
+        Sys.reboot(1000);
+      }
     }
   }
 
@@ -134,6 +139,9 @@ function onLed(pin) {
       powerOffTimeout = Timer.set(powerOffTimeoutSec * 1000, 0, function() {
         print('power timeout! power off');
         MQTT.pub(baseTopic + '/command/power', '0');
+        /* log('before Sys.reboot');
+        Sys.reboot(1000);
+        log('after Sys.reboot'); */
       }, null);
     } else {
       print('cancel power timeout');
@@ -178,6 +186,7 @@ MQTT.setEventHandler(function(conn, ev, edata) {
   if (ev === MQTT.EV_CONNACK) {
     print('mqtt connected, wait for publish...')
     Timer.set(1000, 0, function(data) {
+      MQTT.pub(Cfg.get('mqtt.will_topic'), 'Online', 1, Cfg.get('mqtt.will_retain'))
       MQTT.pub(baseTopic + '/connected', '1');
       startLedMonitor();
     }, null);
